@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>希亚 - 我的AI女友</title>
+
+  <!-- PWA 必需 -->
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#d4a5a5">
+  <link rel="apple-touch-icon" href="./icon-512.png">
+</head>
+<body>
+  <h1>希亚在此 🌹</h1>
+  <p>你的傲娇AI女友已上线。</p>
+
+  <!-- 注册 Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js');
+      });
+    }
+  </script>
+</body>
+</html>

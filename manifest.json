@@ -1,0 +1,23 @@
+{
+  "name": "希亚 - 我的AI女友",
+  "short_name": "希亚",
+  "description": "一位银发赤瞳的花店少女，傲娇又温柔",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#f8f4f0",
+  "theme_color": "#d4a5a5",
+  "orientation": "portrait",
+  "lang":"zh-CN",
+  "icons": [
+    {
+      "src": "icon-400.png",
+      "sizes": "400x400",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
