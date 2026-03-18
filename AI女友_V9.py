@@ -541,9 +541,9 @@ if text_input:
 #                 else:
 #                     st.warning('未能识别到有效语音，请再试一次。')
 
-    else:
-        # 已处理过，跳过（防止 rerun 后重复）
-        pass
+    # else:
+    #     # 已处理过，跳过（防止 rerun 后重复）
+    #     pass
 
 # 用户输入
 if prompt :
