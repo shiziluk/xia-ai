@@ -1,8 +1,6 @@
 import streamlit as st
 import requests
 import json
-import chromadb
-from chromadb.utils import embedding_functions
 import datetime
 import base64
 import streamlit.components.v1 as components
@@ -268,71 +266,71 @@ async def _text_to_speech_async(text: str, voice="zh-CN-XiaoxiaoNeural"):
             audio_data += chunk["data"]
     return audio_data
 
-def speech_to_text(audio_input):
-    '''
-    使用 ffmpeg 命令行修复并转换 WebM 录音为 WAV，再送入 Vosk 识别
-    '''
-    global _vosk_model
+# def speech_to_text(audio_input):
+#     '''
+#     使用 ffmpeg 命令行修复并转换 WebM 录音为 WAV，再送入 Vosk 识别
+#     '''
+#     global _vosk_model
 
-    try:
-        if _vosk_model is None:
-            model_path = 'vosk-model-cn-0.22'
-            if not os.path.exists(model_path):
-                st.error(f'❌ 找不到语音模型！请确保 "{model_path}"文件夹在当前目录')
-                return ''
-            print('正在加载 Vosk 中文大模型（首次较慢）...')
-            _vosk_model = Model(model_path)
-            print('✅ 语音模型加载成功！')
+#     try:
+#         if _vosk_model is None:
+#             model_path = 'vosk-model-cn-0.22'
+#             if not os.path.exists(model_path):
+#                 st.error(f'❌ 找不到语音模型！请确保 "{model_path}"文件夹在当前目录')
+#                 return ''
+#             print('正在加载 Vosk 中文大模型（首次较慢）...')
+#             _vosk_model = Model(model_path)
+#             print('✅ 语音模型加载成功！')
 
-        if isinstance(audio_input, str):
-            webm_data = base64.b64decode(audio_input)
-        else:
-            return ''
+#         if isinstance(audio_input, str):
+#             webm_data = base64.b64decode(audio_input)
+#         else:
+#             return ''
 
-        # 创建临时输入文件（WebM）
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.webm') as tmp_in:
-            tmp_in.write(webm_data)
-            tmp_in_path = tmp_in.name
+#         # 创建临时输入文件（WebM）
+#         with tempfile.NamedTemporaryFile(delete=False, suffix='.webm') as tmp_in:
+#             tmp_in.write(webm_data)
+#             tmp_in_path = tmp_in.name
 
-        # 创建临时输出文件（WAV）
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_out:
-            tmp_out_path = tmp_out.name
+#         # 创建临时输出文件（WAV）
+#         with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_out:
+#             tmp_out_path = tmp_out.name
 
-        try:
-            # 调用 ffmpeg 修复容器并转成 16kHz 单声道 WAV
-            result = subprocess.run([
-                'ffmpeg', '-y', '-hide_banner',
-                '-i', tmp_in_path,
-                '-ar', '16000',
-                '-ac', '1',
-                '-f', 'wav',
-                tmp_out_path
-            ], capture_output=True, text=True)
+#         try:
+#             # 调用 ffmpeg 修复容器并转成 16kHz 单声道 WAV
+#             result = subprocess.run([
+#                 'ffmpeg', '-y', '-hide_banner',
+#                 '-i', tmp_in_path,
+#                 '-ar', '16000',
+#                 '-ac', '1',
+#                 '-f', 'wav',
+#                 tmp_out_path
+#             ], capture_output=True, text=True)
 
-            if result.returncode != 0:
-                print("FFmpeg 转码失败 stderr:", result.stderr)
-                return ""
+#             if result.returncode != 0:
+#                 print("FFmpeg 转码失败 stderr:", result.stderr)
+#                 return ""
 
-            # 读取 WAV 的原始 PCM 数据（跳过头部）
-            with wave.open(tmp_out_path, 'rb') as wf:
-                frames = wf.readframes(wf.getnframes())
+#             # 读取 WAV 的原始 PCM 数据（跳过头部）
+#             with wave.open(tmp_out_path, 'rb') as wf:
+#                 frames = wf.readframes(wf.getnframes())
 
-        finally:
-            # 删除临时文件
-            os.unlink(tmp_in_path)
-            os.unlink(tmp_out_path)
+#         finally:
+#             # 删除临时文件
+#             os.unlink(tmp_in_path)
+#             os.unlink(tmp_out_path)
 
-        # 送入 Vosk 识别
-        rec = KaldiRecognizer(_vosk_model, 16000)
-        rec.AcceptWaveform(frames)
-        result_json = json.loads(rec.FinalResult())
-        text = result_json.get('text', '').strip()
-        print(f"🎙️ 识别结果: {text}")
-        return text
+#         # 送入 Vosk 识别
+#         rec = KaldiRecognizer(_vosk_model, 16000)
+#         rec.AcceptWaveform(frames)
+#         result_json = json.loads(rec.FinalResult())
+#         text = result_json.get('text', '').strip()
+#         print(f"🎙️ 识别结果: {text}")
+#         return text
 
-    except Exception as e:
-        print(f"❌ 本地语音识别失败: {e}")
-        return ""
+#     except Exception as e:
+#         print(f"❌ 本地语音识别失败: {e}")
+#         return ""
 
 
 def generate_daily_summary(date_str: str) -> str:
@@ -669,11 +667,7 @@ if prompt :
     st.chat_message('user').write(prompt)
 
     # 【增强版】注入全部记忆 + 主动关怀指令
-    try:
-        all_data = collection.get()
-        all_memories = all_data['documents'] if all_data['documents'] else []
-    except:
-        all_memories = []
+    all_memories = st.session_state.get('memory_list', [])
 
     # 构建系统提示
     system_prompt_parts = []
