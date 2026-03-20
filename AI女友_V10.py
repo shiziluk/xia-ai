@@ -806,16 +806,13 @@ if prompt :
 
 # ===== 调试用：查看所有记忆 =====
 if st.sidebar.button("🔍 查看记忆库"):
-    try:
-        all_data = collection.get()
-        if all_data['documents']:
-            st.sidebar.write("📚 当前记忆内容：")
-            for i, doc in enumerate(all_data['documents'], 1):
-                st.sidebar.write(f"{i}. {doc}")
-        else:
-            st.sidebar.write("📭 记忆库为空")
-    except Exception as e:
-        st.sidebar.error(f"读取失败: {e}")
+    memories = st.session_state.get('memory_list', [])
+    if memories:
+        st.sidebar.write("📚 当前记忆内容：")
+        for i, mem in enumerate(memories, 1):
+            st.sidebar.write(f"{i}. {mem}")
+    else:
+        st.sidebar.write("📭 记忆库为空")
 
 # ===== 情绪日记入口 =====
 today_str = str(datetime.date.today())
