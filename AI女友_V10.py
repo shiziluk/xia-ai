@@ -75,8 +75,8 @@ def save_chat_history(messages):
         if msg['role'] in ('user', 'assistant'):
             # 如果是 user 消息且没有 timestamp，则添加当前时间
             if msg['role'] == 'user' and 'timestamp' not in msg:
-                msg = msg.copy
-                msg['timestamp'] = datetime.datetime.now().isformat()
+                msg = msg.copy()
+                msg['timestamp'] = datetime.datetime.now().isoformat()
             user_assistant_msgs.append(msg)
     with open(CHAT_HISTORY_FILE, 'w',encoding = 'utf-8') as f:
         json.dump(user_assistant_msgs, f,ensure_ascii=False,indent=2)
