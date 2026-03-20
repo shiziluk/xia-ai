@@ -810,7 +810,7 @@ with col_date2:
 
 search_query = st.sidebar.text_input("留空则显示该时间段所有记录", key="search_input_advanced")
 
-if st.sodebar.button('🔎 搜索'):
+if st.sidebar.button('🔎 搜索'):
     # 加载全部聊天历史
     all_chats = load_chat_history()  # 已有函数，返回 [{'role','content'}, ...]
 
