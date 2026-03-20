@@ -59,33 +59,24 @@ WEATHER_API_KEY = '8707d530daf14f42858afbb31ff9aac1'
 WEATHER_HOST = 'kt564v8p3t.re.qweatherapi.com'  # 我的专属 Host
 CITY_ID ='101210701'
 
-# ===== 智能初始化 ChromaDB：本地持久化 + 云端降级 =====
-def init_chroma_client():
-    """
-    自动适配运行环境：
-    - 本地运行 → 使用 PersistentClient（保留 ./memory_db）
-    - Streamlit Cloud → 使用内存模式（避免 InternalError）
-    - 任何异常 → 回退到内存模式
-    """
-    # 方法1: 检测 Streamlit Cloud 环境变量
-    if os.getenv("STREAMLIT_RUNTIME_ENV") == "cloud":
-        print("☁️ 检测到 Streamlit Cloud，使用内存模式 ChromaDB")
-        return chromadb.Client()
-    
-    # 方法2: 尝试本地持久化（带异常保护）
-    try:
-        print("💻 尝试初始化本地持久化 ChromaDB (./memory_db)...")
-        return chromadb.PersistentClient(path='./memory_db')
-    except Exception as e:
-        print(f"⚠️ 持久化 ChromaDB 失败（{e}），回退到内存模式")
-        return chromadb.Client()
-
-# 初始化客户端
-client = init_chroma_client()
-embedding_func = embedding_functions.ONNXMiniLM_L6_V2()
-collection = client.get_or_create_collection('user_memories', embedding_function=embedding_func)
-# 聊天历史文件路径（保存在根目录下）
+# 聊天历史文件路径
 CHAT_HISTORY_FILE = 'chat_history.json'
+MEMORY_FILE = 'memory_list.json'
+
+# ===== 初始化记忆库（支持本地持久化 + 云端内存）=====
+if 'memory_list' not in st.session_state:
+    st.session_state.memory_list = []
+    if os.getenv("STREAMLIT_RUNTIME_ENV") != "cloud":
+        if os.path.exists(MEMORY_FILE):
+            try:
+                with open(MEMORY_FILE, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    if isinstance(data, list):
+                        st.session_state.memory_list = data
+                        print("💾 已从 memory_list.json 加载记忆")
+            except Exception as e:
+                print("⚠️ 本地记忆文件加载失败:", e)
+
 
 def save_chat_history(messages):
     '''保存聊天记录刀JSON文件（带时间戳）'''
@@ -114,22 +105,50 @@ def load_chat_history():
 
 
 
-def save_memory(text):
-    # 把一句话存入长期记忆
-    collection.add(
-        documents=[text],
-        ids=[f'mem_{collection.count() + 1}']
-    )
+def save_memory(text: str):
+    """
+    保存一条记忆：
+    - 本地：追加到 memory_list.json
+    - Cloud：仅存入 session_state（临时）
+    """
+    text = text.strip()
+    if not text or text in st.session_state.memory_list:
+        return  # 避免重复或空内容
 
-def search_memory(query,n_results=2):
-    # 根据问题，搜索最相关的记忆
-    if collection.count() == 0:
-        return ''
-    results = collection.query(
-        query_texts=[query],
-        n_results=n_results
-    )
-    return '\n'.join(results['documents'][0])
+    # 添加到内存
+    st.session_state.memory_list.append(text)
+
+    # 仅在本地环境持久化到磁盘
+    if os.getenv("STREAMLIT_RUNTIME_ENV") != "cloud":
+        try:
+            with open(MEMORY_FILE, 'w', encoding='utf-8') as f:
+                json.dump(st.session_state.memory_list, f, ensure_ascii=False, indent=2)
+            print(f"✅ 已保存记忆: {text}")
+        except Exception as e:
+            print("❌ 本地记忆保存失败:", e)
+                
+def search_memory(query: str, n_results: int = 2) -> str:
+    """
+    简单关键词匹配搜索记忆（兼容所有环境）
+    """
+    if not st.session_state.memory_list:
+        return ""
+
+    query_lower = query.lower()
+    scored_memories = []
+
+    for mem in st.session_state.memory_list:
+        mem_lower = mem.lower()
+        # 计算 query 中有多少词出现在记忆中
+        score = sum(1 for word in query_lower.split() if word in mem_lower)
+        if score > 0:
+            scored_memories.append((score, mem))
+
+    # 按匹配度降序排序
+    scored_memories.sort(key=lambda x: x[0], reverse=True)
+    top_memories = [mem for _, mem in scored_memories[:n_results]]
+    
+    return '\n'.join(top_memories)
 
 def should_save_to_memory(text):
     # 让AI判断是否包含重要个人信息
@@ -898,8 +917,8 @@ if st.sidebar.button('🔎 搜索'):
             st.sidebar.warning("未找到符合条件的记录")
 
 
-# 在侧边栏底部添加（放在所有按钮之后）
+# 在侧边栏底部
 if os.getenv("STREAMLIT_RUNTIME_ENV") == "cloud":
     st.sidebar.caption("☁️ 记忆为临时存储（刷新后清空）")
 else:
-    st.sidebar.caption("💾 记忆已持久化到本地 memory_db")
+    st.sidebar.caption("💾 记忆已保存到 memory_list.json")
