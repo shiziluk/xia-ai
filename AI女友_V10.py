@@ -68,9 +68,16 @@ collection = client.get_or_create_collection('user_memories',embedding_function=
 CHAT_HISTORY_FILE = 'chat_history.json'
 
 def save_chat_history(messages):
-    '''保存聊天记录刀JSON文件'''
+    '''保存聊天记录刀JSON文件（带时间戳）'''
     # 过滤掉system消息（可选）
-    user_assistant_msgs = [msg for msg in messages if msg['role'] in ('user', 'assistant')]
+    user_assistant_msgs = []
+    for msg in messages:
+        if msg['role'] in ('user', 'assistant'):
+            # 如果是 user 消息且没有 timestamp，则添加当前时间
+            if msg['role'] == 'user' and 'timestamp' not in msg:
+                msg = msg.copy
+                msg['timestamp'] = datetime.datetime.now().isformat()
+            user_assistant_msgs.append(msg)
     with open(CHAT_HISTORY_FILE, 'w',encoding = 'utf-8') as f:
         json.dump(user_assistant_msgs, f,ensure_ascii=False,indent=2)
 
@@ -793,44 +800,79 @@ if st.sidebar.button("🗑️ 清空全部聊天记录"):
 
 # ===== 聊天记录检索功能 =====
 st.sidebar.markdown("🔍 **聊天记录搜索**")
-search_query = st.sidebar.text_input("输入关键词（如：生日、打雷、火锅）", key="search_input")
 
-if search_query.strip():
+# 日期范围选择
+col_date1, col_date2 = st.sidebar.columns(2)
+with col_date1:
+    start_date = st.sidebar.date_input("开始日期", value=datetime.date.today() - datetime.timedelta(days=30))
+with col_date2:
+    end_date = st.sidebar.date_input("结束日期", value=datetime.date.today())
+
+search_query = st.sidebar.text_input("留空则显示该时间段所有记录", key="search_input_advanced")
+
+if st.sodebar.button('🔎 搜索'):
     # 加载全部聊天历史
     all_chats = load_chat_history()  # 已有函数，返回 [{'role','content'}, ...]
 
     if not all_chats:
         st.sidebar.info("📭 还没有聊天记录")
+
     else:
-        matches = []
+        # 构建对话轮次（user + assistant）
+        turns = []
         i = 0
         while i < len(all_chats):
-            # 找到 user 消息
             if all_chats[i]['role'] == 'user':
-                user_msg = all_chats[i]['content']
-                # 检查是否包含关键词（忽略大小写）
-                if search_query.lower() in user_msg.lower():
-                    # 获取对应的 assistant 回复（如果存在）
-                    assistant_msg = ""
-                    if i + 1 < len(all_chats) and all_chats[i + 1]['role'] == 'assistant':
-                        assistant_msg = all_chats[i + 1]['content']
+                user_msg = all_chats[i]
+                # 获取时间（优先用消息自带的，否则跳过）
+                ts_str = user_msg.get('timestamp')
+                if not ts_str:
+                    i += 1
+                    continue  # 跳过无时间戳的旧消息
 
-                    # 提取日期（从完整历史中找时间戳？但我们没存）
-                    # → 退而求其次：只显示内容
-                    matches.append({
-                        'user': user_msg,
-                        'assistant': assistant_msg
-                    })
+                try:
+                    msg_time = datetime.datetime.fromisoformat(ts_str)
+                    msg_date = msg_time.date()
+                except:
+                    i += 1
+                    continue
+
+                # 检查是否在日期范围内
+                if not (start_date <= msg_date <= end_date):
+                    i += 1
+                    continue
+
+                # 获取 AI 回复
+                assistant_msg = ""
+                if i + 1 < len(all_chats) and all_chats[i + 1]['role'] == 'assistant':
+                    assistant_msg = all_chats[i + 1]['content']
+
+                # 关键词匹配（如果提供了关键词）
+                user_text = user_msg['content']
+                if search_query.strip():
+                    if search_query.lower() not in user_text.lower():
+                        i += 1
+                        continue
+
+                turns.append({
+                    'time': msg_time,
+                    'user': user_text,
+                    'assistant': assistant_msg
+                })
                 i += 1
             else:
                 i += 1
 
-        if matches:
-            st.sidebar.success(f"找到 {len(matches)} 条相关记录")
-            for idx, pair in enumerate(matches):
-                with st.sidebar.expander(f"💬 记录 {idx + 1}", expanded=False):
-                    st.markdown(f"**你**：{pair['user']}")
-                    if pair['assistant']:
-                        st.markdown(f"**希亚**：{pair['assistant']}")
+        if turns:
+            # 按时间倒序（最新在前）
+            turns.sort(key=lambda x: x['time'], reverse=True)
+            st.sidebar.success(f"找到 {len(turns)} 条记录（{start_date} 至 {end_date}）")
+
+            for turn in turns:
+                time_str = turn['time'].strftime("%m-%d %H:%M")
+                with st.sidebar.expander(f"💬 {time_str}", expanded=False):
+                    st.markdown(f"**你**：{turn['user']}")
+                    if turn['assistant']:
+                        st.markdown(f"**希亚**：{turn['assistant']}")
         else:
-            st.sidebar.warning("未找到匹配的聊天记录")
+            st.sidebar.warning("未找到符合条件的记录")
