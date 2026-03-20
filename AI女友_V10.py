@@ -9,10 +9,10 @@ import streamlit.components.v1 as components
 import os
 import asyncio
 import edge_tts
-from vosk import Model, KaldiRecognizer
-import subprocess
-import tempfile
-import wave
+# from vosk import Model, KaldiRecognizer
+# import subprocess
+# import tempfile
+# import wave
 import json
 
 
@@ -29,11 +29,11 @@ EMOTION_EMOJI_MAP = {
     "平静": "🙂", "普通": "🙂", "没事": "🙂"
 }
 
-def audiorecorder(label: str = '🎤 说话', key: str = None):
-    # 兼容 Python 3.13 的录音组件（无 pydub 依赖）
-    frontend_dir = os.path.join(os.path.dirname(__file__), 'audiorecorder_frontend')
-    recorder = components.declare_component('audiorecorder',path=frontend_dir)
-    return recorder(label=label, key=key)
+# def audiorecorder(label: str = '🎤 说话', key: str = None):
+#     # 兼容 Python 3.13 的录音组件（无 pydub 依赖）
+#     frontend_dir = os.path.join(os.path.dirname(__file__), 'audiorecorder_frontend')
+#     recorder = components.declare_component('audiorecorder',path=frontend_dir)
+#     return recorder(label=label, key=key)
 
 # 自动生日检测
 def days_until_birthday(target_date='04-06'):
@@ -557,8 +557,8 @@ if 'processed_audio_key' not in st.session_state:
 col1,col2 = st.columns([8,2])
 with col1:
     text_input = st.chat_input('想对我说些什么吗？')
-with col2:
-    audio = audiorecorder(label='🎤',key='recorder') # 显示麦克风图标
+# with col2:
+#     audio = audiorecorder(label='🎤',key='recorder') # 显示麦克风图标
 
 
 
@@ -568,28 +568,28 @@ if text_input:
     prompt = text_input
 
 # 处理语音输入
-if audio is not None and len(audio) > 0:
-    current_audio_key = hash(audio)  # 用哈希值作为唯一标识
+# if audio is not None and len(audio) > 0:
+#     current_audio_key = hash(audio)  # 用哈希值作为唯一标识
 
-    if st.session_state.processed_audio_key != current_audio_key:
-        # 是新录音，才处理
-        st.write("🎙️ 录音数据长度:", len(audio))
-        st.audio(base64.b64decode(audio), format='audio/webm')
-        if len(audio) < 200:  # 大概 0.5 秒以下
-            st.warning("录音太短，请长按说话 1 秒以上")
-        else:
-            with st.spinner('👂 正在倾听...'):
-                spoken_text = speech_to_text(audio)
-                if spoken_text.strip():
-                    prompt = spoken_text.strip()
-                    # 标记这个录音已处理
-                    st.session_state.processed_audio_key = current_audio_key
-                else:
-                    st.warning('未能识别到有效语音，请再试一次。')
+#     if st.session_state.processed_audio_key != current_audio_key:
+#         # 是新录音，才处理
+#         st.write("🎙️ 录音数据长度:", len(audio))
+#         st.audio(base64.b64decode(audio), format='audio/webm')
+#         if len(audio) < 200:  # 大概 0.5 秒以下
+#             st.warning("录音太短，请长按说话 1 秒以上")
+#         else:
+#             with st.spinner('👂 正在倾听...'):
+#                 spoken_text = speech_to_text(audio)
+#                 if spoken_text.strip():
+#                     prompt = spoken_text.strip()
+#                     # 标记这个录音已处理
+#                     st.session_state.processed_audio_key = current_audio_key
+#                 else:
+#                     st.warning('未能识别到有效语音，请再试一次。')
 
-    else:
-        # 已处理过，跳过（防止 rerun 后重复）
-        pass
+#     else:
+#         # 已处理过，跳过（防止 rerun 后重复）
+#         pass
 
 # 用户输入
 if prompt :
