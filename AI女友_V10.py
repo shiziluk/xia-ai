@@ -59,11 +59,31 @@ WEATHER_API_KEY = '8707d530daf14f42858afbb31ff9aac1'
 WEATHER_HOST = 'kt564v8p3t.re.qweatherapi.com'  # 我的专属 Host
 CITY_ID ='101210701'
 
-# 初始化 Chroma数据库（本地存储）
-client = chromadb.PersistentClient(path='./memory_db') # 记忆会保存在项目目录下的 memory_db 文件夹
-embedding_func = embedding_functions.ONNXMiniLM_L6_V2()
-collection = client.get_or_create_collection('user_memories',embedding_function=embedding_func)
+# ===== 智能初始化 ChromaDB：本地持久化 + 云端降级 =====
+def init_chroma_client():
+    """
+    自动适配运行环境：
+    - 本地运行 → 使用 PersistentClient（保留 ./memory_db）
+    - Streamlit Cloud → 使用内存模式（避免 InternalError）
+    - 任何异常 → 回退到内存模式
+    """
+    # 方法1: 检测 Streamlit Cloud 环境变量
+    if os.getenv("STREAMLIT_RUNTIME_ENV") == "cloud":
+        print("☁️ 检测到 Streamlit Cloud，使用内存模式 ChromaDB")
+        return chromadb.Client()
+    
+    # 方法2: 尝试本地持久化（带异常保护）
+    try:
+        print("💻 尝试初始化本地持久化 ChromaDB (./memory_db)...")
+        return chromadb.PersistentClient(path='./memory_db')
+    except Exception as e:
+        print(f"⚠️ 持久化 ChromaDB 失败（{e}），回退到内存模式")
+        return chromadb.Client()
 
+# 初始化客户端
+client = init_chroma_client()
+embedding_func = embedding_functions.ONNXMiniLM_L6_V2()
+collection = client.get_or_create_collection('user_memories', embedding_function=embedding_func)
 # 聊天历史文件路径（保存在根目录下）
 CHAT_HISTORY_FILE = 'chat_history.json'
 
@@ -876,3 +896,10 @@ if st.sidebar.button('🔎 搜索'):
                         st.markdown(f"**希亚**：{turn['assistant']}")
         else:
             st.sidebar.warning("未找到符合条件的记录")
+
+
+# 在侧边栏底部添加（放在所有按钮之后）
+if os.getenv("STREAMLIT_RUNTIME_ENV") == "cloud":
+    st.sidebar.caption("☁️ 记忆为临时存储（刷新后清空）")
+else:
+    st.sidebar.caption("💾 记忆已持久化到本地 memory_db")
